@@ -167,9 +167,6 @@ namespace PowerLanguage.Strategy
         private readonly Queue<double> _vwapHist = new Queue<double>();
         private double _vwapPrev = double.NaN;
 
-        // --- VWAP retest tracking ---
-        private bool _wasAboveVwap = false;  // Track if price was above VWAP in previous bar
-
 
 
         // Session
@@ -519,7 +516,6 @@ namespace PowerLanguage.Strategy
             _PriceW = 0.0; _ShareW = 0.0; _P2Sum = 0.0;
             _upperPrevBar = _lowerPrevBar = 0.0;
             _upperNow = _lowerNow = 0.0;
-            _wasAboveVwap = false;  // Reset retest tracking
         }
 
         private int ComputeDailySessionId(DateTime exNow)
@@ -1346,15 +1342,15 @@ namespace PowerLanguage.Strategy
 
 
             // VWAP retest logic: 
-            // 1. Price was above VWAP in previous bar
+            // 1. Previous bar closed above VWAP (establishing price was above)
             // 2. Current bar retests VWAP (low touches/goes below VWAP)
-            // 3. Close of retest candle is NOT below VWAP
-            // 4. Price continues upwards (close above VWAP)
+            // 3. Close of retest candle is at or above VWAP (not below)
+            // 4. Price shows upward continuation
             bool vwapRetestCondition = canUseBands && (Bars.CurrentBar > 0) &&
-                _wasAboveVwap &&                              // Was above VWAP before
+                !double.IsNaN(_vwapPrev) &&                   // Previous VWAP is valid
+                (Bars.Close[1] > _vwapPrev) &&                // Previous bar closed above VWAP
                 (Bars.Low[0] <= _vwapNow) &&                  // Retests VWAP (low touches/goes below)
-                (Bars.Close[0] >= _vwapNow) &&                // Close NOT below VWAP
-                (Bars.Close[0] > Bars.Close[1]);              // Continues upwards
+                (Bars.Close[0] >= _vwapNow);                  // Close at or above VWAP (not below)
             
             bool longTrigRaw = vwapRetestCondition;
 
@@ -1535,12 +1531,6 @@ namespace PowerLanguage.Strategy
 
             _upperPrevBar = _upperNow;
             _lowerPrevBar = _lowerNow;
-            
-            // Update VWAP retest tracking: track if current close is above VWAP for next bar
-            if (!double.IsNaN(_vwapNow) && _vwapNow > 0)
-            {
-                _wasAboveVwap = (Bars.Close[0] > _vwapNow);
-            }
         }
     }
 }
