@@ -1341,8 +1341,18 @@ namespace PowerLanguage.Strategy
 
 
 
-            bool longTrigRaw = canUseBands && (Bars.CurrentBar > 0) &&
-                   (Bars.Close[0] > _upperNow) && (Bars.Close[1] <= _upperPrevBar);
+            // VWAP retest logic: 
+            // 1. Previous bar closed above its VWAP
+            // 2. Current bar retests VWAP (low touches/goes below VWAP)
+            // 3. Close of retest candle is at or above VWAP (not below)
+            double prevBarVwap = GetVwapPast(1);  // Get previous bar's VWAP from history
+            bool vwapRetestCondition = canUseBands && (Bars.CurrentBar > 0) &&
+                !double.IsNaN(prevBarVwap) &&                 // Previous VWAP is valid
+                (Bars.Close[1] > prevBarVwap) &&              // Previous bar closed above its VWAP
+                (Bars.Low[0] <= _vwapNow) &&                  // Retests VWAP (low touches/goes below)
+                (Bars.Close[0] >= _vwapNow);                  // Close at or above VWAP (not below)
+            
+            bool longTrigRaw = vwapRetestCondition;
 
             bool shortTrigRaw = canUseBands && (Bars.CurrentBar > 0) &&
                                 (Bars.Close[0] < _lowerNow) && (Bars.Close[1] >= _lowerPrevBar);
